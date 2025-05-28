@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure File Transfer - Mã hóa AES</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            border-radius: 24px;
+            box-shadow: 0 32px 64px rgba(0, 0, 0, 0.2);
+            max-width: 800px;
+            width: 100%;
+            padding: 40px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            animation: slideIn 0.8s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo {
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-radius: 16px;
+            margin: 0 auto 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+        }
+
+        h1 {
+            color: #2d3748;
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #718096;
+            font-size: 16px;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f7fafc;
+            border-radius: 12px;
+            padding: 4px;
+            margin-bottom: 30px;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px 20px;
+            text-align: center;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-weight: 600;
+            color: #718096;
+        }
+
+        .tab.active {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.5s ease-in;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .upload-zone {
+            border: 2px dashed #cbd5e0;
+            border-radius: 12px;
+            padding: 40px 20px;
+            text-align: center;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+
+        .upload-zone:hover, .upload-zone.dragover {
+            border-color: #667eea;
+            background: #f0f4ff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.15);
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            color: #cbd5e0;
+            margin-bottom: 16px;
+        }
+
+        .upload-zone.dragover .upload-icon {
+            color: #667eea;
+            animation: bounce 0.6s ease-in-out;
+        }
+
+        @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+            40% { transform: translateY(-10px); }
+            60% { transform: translateY(-5px); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress {
+            background: #e2e8f0;
+            border-radius: 6px;
+            height: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 6px;
+        }
+
+        .file-info {
+            background: #f0f4ff;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status.success {
+            background: #f0fff4;
+            color: #38a169;
+            border: 1px solid #9ae6b4;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #e53e3e;
+            border: 1px solid #feb2b2;
+        }
+
+        .status.show {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        .socket-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 20px;
+            padding: 12px 16px;
+            background: #f7fafc;
+            border-radius: 8px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #f56565;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #48bb78;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .download-section {
+            text-align: center;
+        }
+
+        .download-link {
+            display: inline-block;
+            background: linear-gradient(135deg, #48bb78, #38a169);
+            color: white;
+            padding: 12px 24px;
+            border-radius: 8px;
+            text-decoration: none;
+            font-weight: 600;
+            margin-top: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .download-link:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(72, 187, 120, 0.3);
+        }
+
+        .feature-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-top: 30px;
+        }
+
+        .feature {
+            background: #f8f9ff;
+            padding: 16px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid #e2e8f0;
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+            color: #667eea;
+        }
+
+        .feature h3 {
+            color: #2d3748;
+            font-size: 14px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .feature p {
+            color: #718096;
+            font-size: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px;
+                margin: 10px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .tabs {
+                flex-direction: column;
+            }
+            
+            .tab {
+                margin-bottom: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="logo">🔒</div>
+            <h1>Secure File Transfer</h1>
+            <p class="subtitle">Truyền file an toàn với mã hóa AES</p>
+        </div>
+
+        <div class="socket-status">
+            <div class="status-dot" id="connectionStatus"></div>
+            <span id="connectionText">Đang kết nối Socket...</span>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('upload')">📤 Gửi File</div>
+            <div class="tab" onclick="switchTab('download')">📥 Nhận File</div>
+        </div>
+
+        <div id="upload-tab" class="tab-content active">
+            <div class="upload-zone" id="uploadZone">
+                <div class="upload-icon">📁</div>
+                <h3>Kéo thả file vào đây hoặc click để chọn</h3>
+                <p>Hỗ trợ tất cả định dạng file</p>
+                <input type="file" id="fileInput" style="display: none;">
+            </div>
+
+            <div class="file-info" id="fileInfo">
+                <h4>📄 Thông tin file:</h4>
+                <p id="fileName"></p>
+                <p id="fileSize"></p>
+                <p id="fileType"></p>
+            </div>
+
+            <div class="form-group">
+                <label for="encryptionKey">🔑 Khóa mã hóa:</label>
+                <input type="password" id="encryptionKey" placeholder="Nhập khóa bảo mật...">
+            </div>
+
+            <button class="btn" id="uploadBtn" disabled>
+                🚀 Mã hóa và Gửi File
+            </button>
+
+            <div class="progress" id="uploadProgress" style="display: none;">
+                <div class="progress-bar" id="uploadProgressBar"></div>
+            </div>
+
+            <div class="status" id="uploadStatus"></div>
+        </div>
+
+        <div id="download-tab" class="tab-content">
+            <div class="form-group">
+                <label for="fileId">🆔 ID File:</label>
+                <input type="text" id="fileId" placeholder="Nhập ID file nhận được...">
+            </div>
+
+            <div class="form-group">
+                <label for="decryptionKey">🔑 Khóa giải mã:</label>
+                <input type="password" id="decryptionKey" placeholder="Nhập khóa bảo mật...">
+            </div>
+
+            <button class="btn" id="downloadBtn">
+                📥 Tải và Giải mã File
+            </button>
+
+            <div class="progress" id="downloadProgress" style="display: none;">
+                <div class="progress-bar" id="downloadProgressBar"></div>
+            </div>
+
+            <div class="status" id="downloadStatus"></div>
+
+            <div class="download-section" id="downloadSection" style="display: none;">
+                <h4>✅ File đã sẵn sàng tải xuống!</h4>
+                <a href="#" class="download-link" id="downloadLink">💾 Tải File</a>
+            </div>
+        </div>
+
+        <div class="feature-list">
+            <div class="feature">
+                <div class="feature-icon">🔐</div>
+                <h3>Mã hóa AES-256</h3>
+                <p>Bảo mật cấp độ quân sự</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">⚡</div>
+                <h3>Truyền nhanh</h3>
+                <p>Socket.IO real-time</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">🔄</div>
+                <h3>Tự động xóa</h3>
+                <p>File xóa sau khi tải</p>
+            </div>
+            <div class="feature">
+                <div class="feature-icon">📱</div>
+                <h3>Responsive</h3>
+                <p>Hoạt động mọi thiết bị</p>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <script>
+        // Mock Socket connection (vì chúng ta không có server thật)
+        const socket = {
+            connected: false,
+            emit: function(event, data, callback) {
+                console.log('Socket emit:', event, data);
+                if (callback) {
+                    setTimeout(() => {
+                        if (event === 'upload-file') {
+                            callback({
+                                success: true,
+                                fileId: 'file_' + Math.random().toString(36).substr(2, 9),
+                                message: 'File đã được tải lên và mã hóa thành công!'
+                            });
+                        } else if (event === 'download-file') {
+                            callback({
+                                success: true,
+                                fileData: data.encryptedData || 'encrypted_mock_data',
+                                fileName: 'downloaded_file.txt',
+                                message: 'File đã được tải xuống thành công!'
+                            });
+                        }
+                    }, 2000);
+                }
+            },
+            on: function(event, callback) {
+                console.log('Socket listening for:', event);
+            }
+        };
+
+        // Simulate connection
+        setTimeout(() => {
+            socket.connected = true;
+            updateConnectionStatus();
+        }, 1000);
+
+        let selectedFile = null;
+
+        // DOM elements
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const encryptionKey = document.getElementById('encryptionKey');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const downloadStatus = document.getElementById('downloadStatus');
+
+        // Update connection status
+        function updateConnectionStatus() {
+            const statusDot = document.getElementById('connectionStatus');
+            const statusText = document.getElementById('connectionText');
+            
+            if (socket.connected) {
+                statusDot.classList.add('connected');
+                statusText.textContent = '✅ Kết nối Socket thành công';
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '❌ Mất kết nối Socket';
+            }
+        }
+
+        // Tab switching
+        function switchTab(tab) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            
+            event.target.classList.add('active');
+            document.getElementById(tab + '-tab').classList.add('active');
+        }
+
+        // File upload zone events
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => {
+            uploadZone.classList.remove('dragover');
+        });
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFileSelect(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelect(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelect(file) {
+            selectedFile = file;
+            
+            // Show file info
+            document.getElementById('fileName').textContent = `Tên: ${file.name}`;
+            document.getElementById('fileSize').textContent = `Kích thước: ${formatFileSize(file.size)}`;
+            document.getElementById('fileType').textContent = `Loại: ${file.type || 'Không xác định'}`;
+            fileInfo.classList.add('show');
+            
+            checkUploadReady();
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        function checkUploadReady() {
+            const keyValid = encryptionKey.value.length > 0;
+            const fileSelected = selectedFile !== null;
+            uploadBtn.disabled = !(keyValid && fileSelected);
+        }
+
+        encryptionKey.addEventListener('input', checkUploadReady);
+
+        // Upload functionality
+        uploadBtn.addEventListener('click', async () => {
+            if (!selectedFile || encryptionKey.value.length === 0) {
+                showStatus('uploadStatus', 'error', '❌ Vui lòng chọn file và nhập khóa mã hóa');
+                return;
+            }
+
+            uploadBtn.disabled = true;
+            showProgress('uploadProgress', 'uploadProgressBar');
+            
+            try {
+                // Read file
+                const fileData = await readFileAsArrayBuffer(selectedFile);
+                
+                // Encrypt file
+                updateProgress('uploadProgressBar', 30);
+                const encryptedData = encryptFile(fileData, encryptionKey.value);
+                
+                // Simulate upload
+                updateProgress('uploadProgressBar', 60);
+                
+                // Store encrypted file data in memory for demo
+                const fileId = 'file_' + Math.random().toString(36).substr(2, 9);
+                window.uploadedFiles = window.uploadedFiles || {};
+                window.uploadedFiles[fileId] = {
+                    encryptedData: encryptedData,
+                    fileName: selectedFile.name,
+                    fileType: selectedFile.type,
+                    fileSize: selectedFile.size
+                };
+                
+                setTimeout(() => {
+                    updateProgress('uploadProgressBar', 100);
+                    showStatus('uploadStatus', 'success', 
+                        `✅ File đã được tải lên và mã hóa thành công!<br>
+                        <strong>🆔 ID File: ${fileId}</strong><br>
+                        <small>Chia sẻ ID này để người khác có thể tải file</small>`);
+                    
+                    setTimeout(() => {
+                        hideProgress('uploadProgress');
+                        uploadBtn.disabled = false;
+                    }, 1000);
+                }, 2000);
+                
+            } catch (error) {
+                showStatus('uploadStatus', 'error', '❌ Lỗi khi xử lý file: ' + error.message);
+                hideProgress('uploadProgress');
+                uploadBtn.disabled = false;
+            }
+        });
+
+        // Download functionality
+        downloadBtn.addEventListener('click', () => {
+            const fileId = document.getElementById('fileId').value.trim();
+            const decryptionKey = document.getElementById('decryptionKey').value;
+            
+            if (!fileId || !decryptionKey) {
+                showStatus('downloadStatus', 'error', '❌ Vui lòng nhập đầy đủ ID file và khóa giải mã');
+                return;
+            }
+            
+            // Check if file exists in our memory storage
+            if (!window.uploadedFiles || !window.uploadedFiles[fileId]) {
+                showStatus('downloadStatus', 'error', '❌ Không tìm thấy file với ID này');
+                return;
+            }
+            
+            downloadBtn.disabled = true;
+            showProgress('downloadProgress', 'downloadProgressBar');
+            
+            setTimeout(() => {
+                updateProgress('downloadProgressBar', 50);
+                
+                const fileData = window.uploadedFiles[fileId];
+                
+                try {
+                    // Decrypt file
+                    updateProgress('downloadProgressBar', 80);
+                    const decryptedData = decryptFile(fileData.encryptedData, decryptionKey);
+                    
+                    updateProgress('downloadProgressBar', 100);
+                    
+                    // Create download link
+                    const blob = new Blob([decryptedData]);
+                    const url = URL.createObjectURL(blob);
+                    const downloadLink = document.getElementById('downloadLink');
+                    downloadLink.href = url;
+                    downloadLink.download = fileData.fileName || 'decrypted_file';
+                    
+                    showStatus('downloadStatus', 'success', '✅ File đã được giải mã thành công!');
+                    document.getElementById('downloadSection').style.display = 'block';
+                    
+                } catch (error) {
+                    console.error('Decryption error:', error);
+                    showStatus('downloadStatus', 'error', '❌ Không thể giải mã file. Vui lòng kiểm tra lại khóa.');
+                }
+                
+                setTimeout(() => {
+                    hideProgress('downloadProgress');
+                    downloadBtn.disabled = false;
+                }, 1000);
+            }, 1500);
+        });
+
+        // Utility functions
+        function readFileAsArrayBuffer(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result);
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        // Hàm mã hóa file với AES và trả về chuỗi JSON chứa ciphertext, iv, salt
+        function encryptFile(fileData, password) {
+            // Tạo IV (Initialization Vector) ngẫu nhiên 16 bytes
+            const iv = CryptoJS.lib.WordArray.random(16);
+
+            // Chuyển dữ liệu file (ArrayBuffer) thành WordArray cho CryptoJS
+            const wordArray = CryptoJS.lib.WordArray.create(fileData);
+
+            // Mã hóa dữ liệu với AES, dùng password và IV vừa tạo
+            // CryptoJS sẽ tự sinh salt ngẫu nhiên nếu dùng password dạng string
+            const encrypted = CryptoJS.AES.encrypt(wordArray, password, { iv: iv });
+
+            // Lưu lại ciphertext (dữ liệu đã mã hóa), IV và salt (nếu có)
+            // - ciphertext: dữ liệu mã hóa, chuyển sang base64 cho gọn nhẹ
+            // - iv: chuyển sang hex để dễ lưu trữ
+            // - salt: chuyển sang hex, nếu có (nếu không có thì để rỗng)
+            const result = {
+                ciphertext: encrypted.ciphertext.toString(CryptoJS.enc.Base64),
+                iv: iv.toString(CryptoJS.enc.Hex),
+                salt: encrypted.salt ? encrypted.salt.toString(CryptoJS.enc.Hex) : ''
+            };
+
+            // Trả về chuỗi JSON chứa đủ thông tin để giải mã ở bất kỳ đâu
+            return JSON.stringify(result);
+        }
+
+        // Hàm giải mã file từ chuỗi JSON (chứa ciphertext, iv, salt) và password
+        function decryptFile(encryptedData, password) {
+            // Parse chuỗi JSON để lấy lại các thông tin đã lưu khi mã hóa
+            let obj;
+            try {
+                obj = JSON.parse(encryptedData);
+            } catch (e) {
+                // Nếu dữ liệu không phải JSON hợp lệ thì báo lỗi
+                throw new Error('Dữ liệu mã hóa không hợp lệ');
+            }
+
+            // Chuyển ciphertext từ base64 về WordArray
+            const ciphertext = CryptoJS.enc.Base64.parse(obj.ciphertext);
+
+            // Chuyển iv từ hex về WordArray
+            const iv = CryptoJS.enc.Hex.parse(obj.iv);
+
+            // Tạo options cho hàm giải mã, bắt buộc phải có iv
+            const options = { iv: iv };
+
+            // Nếu có salt thì chuyển salt từ hex về WordArray và thêm vào options
+            if (obj.salt) {
+                options.salt = CryptoJS.enc.Hex.parse(obj.salt);
+            }
+
+            // Giải mã với AES, truyền vào ciphertext, password và options (iv, salt)
+            // Lưu ý: phải truyền đúng salt và iv đã dùng khi mã hóa thì mới giải mã được
+            const decrypted = CryptoJS.AES.decrypt(
+                { ciphertext: ciphertext, salt: options.salt },
+                password,
+                options
+            );
+
+
+            // Chuyển kết quả giải mã (WordArray) về Uint8Array để tạo file download
+            const typedArray = convertWordArrayToUint8Array(decrypted);
+            return typedArray;
+        }
+
+        function convertWordArrayToUint8Array(wordArray) {
+            const arrayOfWords = wordArray.hasOwnProperty("words") ? wordArray.words : [];
+            const length = wordArray.hasOwnProperty("sigBytes") ? wordArray.sigBytes : arrayOfWords.length * 4;
+            const uInt8Array = new Uint8Array(length), byteIndex = 0;
+            for (let wordIndex = 0; wordIndex < length; wordIndex++) {
+                const word = arrayOfWords[wordIndex];
+                for (let byteIndex = 0; byteIndex < 4 && (wordIndex * 4) + byteIndex < length; byteIndex++) {
+                    uInt8Array[(wordIndex * 4) + byteIndex] = (word >> (8 * (3 - byteIndex))) & 0xFF;
+                }
+            }
+            return uInt8Array;
+        }
+
+        function showStatus(elementId, type, message) {
+            const status = document.getElementById(elementId);
+            status.className = `status ${type} show`;
+            status.innerHTML = message;
+        }
+
+        function showProgress(progressId, barId) {
+            document.getElementById(progressId).style.display = 'block';
+            updateProgress(barId, 0);
+        }
+
+        function hideProgress(progressId) {
+            document.getElementById(progressId).style.display = 'none';
+        }
+
+        function updateProgress(barId, percent) {
+            document.getElementById(barId).style.width = percent + '%';
+        }
+
+        // Initialize
+        updateConnectionStatus();
+    </script>
+</body>
+</html>
